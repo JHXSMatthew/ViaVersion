@@ -1,13 +1,16 @@
-# ViaVersion 0.6.7
+# ViaVersion 0.7.2
 [![Build Status](https://travis-ci.org/MylesIsCool/ViaVersion.svg?branch=master)](https://travis-ci.org/MylesIsCool/ViaVersion)
+[![Gitter](https://badges.gitter.im/MylesIsCool/ViaVersion.svg)](https://gitter.im/MylesIsCool/ViaVersion)
+
 **Allows the connection of 1.9 clients to 1.8**
 
 This plugin modifies netty to allow connection of 1.9 clients to 1.8,
 
 ###*Don't use late bind*
 
+This uses our new API, we currently don't have javadocs yet but look at one of our protocols on how to get started then use ProtocolRegistry.registerProtocol()
 
-This took hours of work, so if you enjoy this consider looking into contacting me and supporting my projects.
+This took 100s hours of work, so if you enjoy this consider looking into contacting me and supporting my projects.
 
 **Contributor Chat:** https://gitter.im/MylesIsCool/ViaVersion
 
@@ -59,6 +62,8 @@ You can find unofficial dev builds here:
 
 **sgdc3's Build Server:** http://ci.xephi.fr/job/ViaVersion/
 **sgdc3's Maven:** http://ci.xephi.fr/plugin/repository/everything/
+
+**JavaDocs:** https://jd.matsv.nl/
 
 License:
 --------

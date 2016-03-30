@@ -8,21 +8,19 @@ import io.netty.channel.socket.SocketChannel;
 import lombok.NonNull;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import us.myles.ViaVersion.api.ViaVersion;
 import us.myles.ViaVersion.api.ViaVersionAPI;
+import us.myles.ViaVersion.api.ViaVersionConfig;
 import us.myles.ViaVersion.api.boss.BossBar;
 import us.myles.ViaVersion.api.boss.BossColor;
 import us.myles.ViaVersion.api.boss.BossStyle;
-import us.myles.ViaVersion.armor.ArmorListener;
+import us.myles.ViaVersion.api.data.UserConnection;
+import us.myles.ViaVersion.api.protocol.ProtocolRegistry;
 import us.myles.ViaVersion.boss.ViaBossBar;
 import us.myles.ViaVersion.commands.ViaVersionCommand;
 import us.myles.ViaVersion.handlers.ViaVersionInitializer;
-import us.myles.ViaVersion.listeners.CommandBlockListener;
+import us.myles.ViaVersion.protocols.base.ProtocolInfo;
 import us.myles.ViaVersion.update.UpdateListener;
 import us.myles.ViaVersion.update.UpdateUtil;
 import us.myles.ViaVersion.util.Configuration;
@@ -40,29 +38,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-public class ViaVersionPlugin extends JavaPlugin implements ViaVersionAPI {
+public class ViaVersionPlugin extends JavaPlugin implements ViaVersionAPI, ViaVersionConfig {
 
-    private final Map<UUID, ConnectionInfo> portedPlayers = new ConcurrentHashMap<>();
+    private final Map<UUID, UserConnection> portedPlayers = new ConcurrentHashMap<>();
     private boolean debug = false;
-
-    public static ItemStack getHandItem(final ConnectionInfo info) {
-        try {
-            return Bukkit.getScheduler().callSyncMethod(Bukkit.getPluginManager().getPlugin("ViaVersion"), new Callable<ItemStack>() {
-                @Override
-                public ItemStack call() throws Exception {
-                    if (info.getPlayer() != null) {
-                        return info.getPlayer().getItemInHand();
-                    }
-                    return null;
-                }
-            }).get(10, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            System.out.println("Error fetching hand item: " + e.getClass().getName());
-            if (ViaVersion.getInstance().isDebug())
-                e.printStackTrace();
-            return null;
-        }
-    }
 
     @Override
     public void onEnable() {
@@ -74,26 +53,78 @@ public class ViaVersionPlugin extends JavaPlugin implements ViaVersionAPI {
             return;
         }
 
-        getLogger().info("ViaVersion " + getDescription().getVersion() + " is now enabled, injecting. (Allows 1.8 to be accessed via 1.9)");
-        injectPacketHandler();
-        if (getConfig().getBoolean("simulate-pt", true))
-            new ViaIdleThread(portedPlayers).runTaskTimerAsynchronously(this, 1L, 1L); // Updates player's idle status
+        // Gather version :)
+        Bukkit.getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
+            @Override
+            public void run() {
+                gatherProtocolVersion();
+                // Check if there are any pipes to this version
+                if (ProtocolRegistry.SERVER_PROTOCOL != -1) {
+                    getLogger().info("ViaVersion detected protocol version: " + ProtocolRegistry.SERVER_PROTOCOL);
+                    if (!ProtocolRegistry.isWorkingPipe()) {
+                        getLogger().warning("ViaVersion will not function on the current protocol.");
+                    }
+                }
+            }
+        });
 
-        if (getConfig().getBoolean("checkforupdates"))
+        getLogger().info("ViaVersion " + getDescription().getVersion() + " is now enabled, injecting.");
+        injectPacketHandler();
+
+
+        if (isCheckForUpdates())
             UpdateUtil.sendUpdateMessage(this);
 
-        Bukkit.getPluginManager().registerEvents(new Listener() {
-            @EventHandler
-            public void onPlayerQuit(PlayerQuitEvent e) {
-                removePortedClient(e.getPlayer().getUniqueId());
-            }
-        }, this);
-
-        Bukkit.getPluginManager().registerEvents(new ArmorListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new CommandBlockListener(this), this);
         Bukkit.getPluginManager().registerEvents(new UpdateListener(this), this);
 
         getCommand("viaversion").setExecutor(new ViaVersionCommand(this));
+    }
+
+    public void gatherProtocolVersion() {
+        try {
+            Class<?> serverClazz = ReflectionUtil.nms("MinecraftServer");
+            Object server = ReflectionUtil.invokeStatic(serverClazz, "getServer");
+            Class<?> pingClazz = ReflectionUtil.nms("ServerPing");
+            Object ping = null;
+            // Search for ping method
+            for (Field f : serverClazz.getDeclaredFields()) {
+                if (f.getType() != null) {
+                    if (f.getType().getSimpleName().equals("ServerPing")) {
+                        f.setAccessible(true);
+                        ping = f.get(server);
+                    }
+                }
+            }
+            if (ping != null) {
+                Object serverData = null;
+                for (Field f : pingClazz.getDeclaredFields()) {
+                    if (f.getType() != null) {
+                        if (f.getType().getSimpleName().endsWith("ServerData")) {
+                            f.setAccessible(true);
+                            serverData = f.get(ping);
+                        }
+                    }
+                }
+                if (serverData != null) {
+                    int protocolVersion = -1;
+                    for (Field f : serverData.getClass().getDeclaredFields()) {
+                        if (f.getType() != null) {
+                            if (f.getType() == int.class) {
+                                f.setAccessible(true);
+                                protocolVersion = (int) f.get(serverData);
+                            }
+                        }
+                    }
+                    if (protocolVersion != -1) {
+                        ProtocolRegistry.SERVER_PROTOCOL = protocolVersion;
+                        return;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            // We couldn't work it out... We'll just use ping and hope for the best...
+        }
     }
 
     public void generateConfig() {
@@ -197,8 +228,15 @@ public class ViaVersionPlugin extends JavaPlugin implements ViaVersionAPI {
     @Override
     public int getPlayerVersion(@NonNull Player player) {
         if (!isPorted(player))
-            return 47;
-        return portedPlayers.get(player.getUniqueId()).getProtocol();
+            return ProtocolRegistry.SERVER_PROTOCOL;
+        return portedPlayers.get(player.getUniqueId()).get(ProtocolInfo.class).getProtocolVersion();
+    }
+
+    @Override
+    public int getPlayerVersion(@NonNull UUID uuid) {
+        if (!isPorted(uuid))
+            return ProtocolRegistry.SERVER_PROTOCOL;
+        return portedPlayers.get(uuid).get(ProtocolInfo.class).getProtocolVersion();
     }
 
     @Override
@@ -211,14 +249,22 @@ public class ViaVersionPlugin extends JavaPlugin implements ViaVersionAPI {
         return getDescription().getVersion();
     }
 
+    public UserConnection getConnection(UUID playerUUID) {
+        return portedPlayers.get(playerUUID);
+    }
+
+    public UserConnection getConnection(Player player) {
+        return portedPlayers.get(player.getUniqueId());
+    }
+
     public void sendRawPacket(Player player, ByteBuf packet) throws IllegalArgumentException {
         sendRawPacket(player.getUniqueId(), packet);
     }
 
     @Override
     public void sendRawPacket(UUID uuid, ByteBuf packet) throws IllegalArgumentException {
-        if (!isPorted(uuid)) throw new IllegalArgumentException("This player is not on 1.9");
-        ConnectionInfo ci = portedPlayers.get(uuid);
+        if (!isPorted(uuid)) throw new IllegalArgumentException("This player is not controlled by ViaVersion!");
+        UserConnection ci = portedPlayers.get(uuid);
         ci.sendRawPacket(packet);
     }
 
@@ -241,12 +287,16 @@ public class ViaVersionPlugin extends JavaPlugin implements ViaVersionAPI {
         this.debug = value;
     }
 
+    public boolean isCheckForUpdates() {
+        return getConfig().getBoolean("checkforupdates", true);
+    }
+
     public boolean isPreventCollision() {
         return getConfig().getBoolean("prevent-collision", true);
     }
 
-    public boolean isNewEffectIndicator(){
-        return getConfig().getBoolean("use-new-effect-indicator",true);
+    public boolean isNewEffectIndicator() {
+        return getConfig().getBoolean("use-new-effect-indicator", true);
     }
 
     public boolean isSuppressMetadataErrors() {
@@ -269,18 +319,21 @@ public class ViaVersionPlugin extends JavaPlugin implements ViaVersionAPI {
         return getConfig().getBoolean("bossbar-anti-flicker", false);
     }
 
+    public boolean isUnknownEntitiesSuppressed() {
+        return getConfig().getBoolean("suppress-entityid-errors", false);
+    }
+
     public double getHologramYOffset() {
         return getConfig().getDouble("hologram-y", -1D);
     }
 
     public boolean isAutoTeam() {
         // Collision has to be enabled first
-        if (!isPreventCollision()) return false;
-        return getConfig().getBoolean("auto-team", true);
+        return isPreventCollision() && getConfig().getBoolean("auto-team", true);
     }
 
-    public void addPortedClient(ConnectionInfo info) {
-        portedPlayers.put(info.getUUID(), info);
+    public void addPortedClient(UserConnection info) {
+        portedPlayers.put(info.get(ProtocolInfo.class).getUuid(), info);
     }
 
     public void removePortedClient(UUID clientID) {
@@ -304,5 +357,9 @@ public class ViaVersionPlugin extends JavaPlugin implements ViaVersionAPI {
             if (ViaVersion.getInstance().isDebug())
                 e.printStackTrace();
         }
+    }
+
+    public Map<UUID, UserConnection> getPortedPlayers() {
+        return portedPlayers;
     }
 }

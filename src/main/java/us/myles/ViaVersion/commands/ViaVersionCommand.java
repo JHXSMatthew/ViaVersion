@@ -13,9 +13,6 @@ import us.myles.ViaVersion.api.ViaVersion;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Created by fillefilip8 on 2016-03-03.
- */
 @RequiredArgsConstructor
 public class ViaVersionCommand implements CommandExecutor {
 
@@ -51,12 +48,12 @@ public class ViaVersionCommand implements CommandExecutor {
                     }
                     sender.sendMessage(color("&6Leak detector is now " + (ResourceLeakDetector.getLevel() == ResourceLeakDetector.Level.ADVANCED ? "&aenabled" : "&cdisabled")));
                 } else if (args[0].equalsIgnoreCase("dontbugme")) {
-                    boolean newValue = !plugin.getConfig().getBoolean("checkforupdates", true);
+                    boolean newValue = !plugin.isCheckForUpdates();
                     plugin.getConfig().set("checkforupdates", newValue);
                     plugin.saveConfig();
                     sender.sendMessage(color("&6We will " + (newValue ? "&anotify you about updates." : "&cnot tell you about updates.")));
                 } else if (args[0].equalsIgnoreCase("autoteam")) {
-                    boolean newValue = !plugin.getConfig().getBoolean("auto-team", true);
+                    boolean newValue = !plugin.isAutoTeam();
                     plugin.getConfig().set("auto-team", newValue);
                     plugin.saveConfig();
                     sender.sendMessage(color("&6We will " + (newValue ? "&aautomatically team players" : "&cno longer auto team players")));

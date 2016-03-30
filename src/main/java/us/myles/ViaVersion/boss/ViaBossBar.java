@@ -11,9 +11,9 @@ import us.myles.ViaVersion.api.boss.BossBar;
 import us.myles.ViaVersion.api.boss.BossColor;
 import us.myles.ViaVersion.api.boss.BossFlag;
 import us.myles.ViaVersion.api.boss.BossStyle;
-import us.myles.ViaVersion.packets.PacketType;
-import us.myles.ViaVersion.transformers.OutgoingTransformer;
-import us.myles.ViaVersion.util.PacketUtil;
+import us.myles.ViaVersion.api.protocol.ProtocolVersion;
+import us.myles.ViaVersion.api.type.Type;
+import us.myles.ViaVersion.protocols.protocol1_9to1_8.Protocol1_9TO1_8;
 
 import java.util.*;
 
@@ -42,17 +42,19 @@ public class ViaBossBar implements BossBar {
     }
 
     @Override
-    public void setTitle(String title) {
+    public BossBar setTitle(String title) {
         Validate.notNull(title, "Title cannot be null");
         this.title = title;
         sendPacket(UpdateAction.UPDATE_TITLE);
+        return this;
     }
 
     @Override
-    public void setHealth(float health) {
+    public BossBar setHealth(float health) {
         Validate.isTrue((health >= 0 && health <= 1), "Health must be between 0 and 1");
         this.health = health;
         sendPacket(UpdateAction.UPDATE_HEALTH);
+        return this;
     }
 
     @Override
@@ -61,48 +63,54 @@ public class ViaBossBar implements BossBar {
     }
 
     @Override
-    public void setColor(BossColor color) {
+    public BossBar setColor(BossColor color) {
         Validate.notNull(color, "Color cannot be null");
         this.color = color;
         sendPacket(UpdateAction.UPDATE_STYLE);
+        return this;
     }
 
     @Override
-    public void setStyle(BossStyle style) {
+    public BossBar setStyle(BossStyle style) {
         Validate.notNull(style, "Style cannot be null");
         this.style = style;
         sendPacket(UpdateAction.UPDATE_STYLE);
+        return this;
     }
 
     @Override
-    public void addPlayer(Player player) {
+    public BossBar addPlayer(Player player) {
         if (player != null && !players.contains(player.getUniqueId())) {
             players.add(player.getUniqueId());
             if (visible)
                 sendPacket(player.getUniqueId(), getPacket(UpdateAction.ADD));
         }
+        return this;
     }
 
     @Override
-    public void removePlayer(Player player) {
+    public BossBar removePlayer(Player player) {
         if (player != null && players.contains(player.getUniqueId())) {
             players.remove(player.getUniqueId());
             sendPacket(player.getUniqueId(), getPacket(UpdateAction.REMOVE));
         }
+        return this;
     }
 
     @Override
-    public void addFlag(BossFlag flag) {
+    public BossBar addFlag(BossFlag flag) {
         if (!hasFlag(flag))
             flags.add(flag);
         sendPacket(UpdateAction.UPDATE_FLAGS);
+        return this;
     }
 
     @Override
-    public void removeFlag(BossFlag flag) {
+    public BossBar removeFlag(BossFlag flag) {
         if (hasFlag(flag))
             flags.remove(flag);
         sendPacket(UpdateAction.UPDATE_FLAGS);
+        return this;
     }
 
     @Override
@@ -116,13 +124,15 @@ public class ViaBossBar implements BossBar {
     }
 
     @Override
-    public void show() {
+    public BossBar show() {
         setVisible(true);
+        return this;
     }
 
     @Override
-    public void hide() {
+    public BossBar hide() {
         setVisible(false);
+        return this;
     }
 
     @Override
@@ -144,7 +154,7 @@ public class ViaBossBar implements BossBar {
     }
 
     private void sendPacket(UUID uuid, ByteBuf buf) {
-        if (!ViaVersion.getInstance().isPorted(uuid)) {
+        if (!ViaVersion.getInstance().isPorted(uuid) || !(ViaVersion.getInstance().getPlayerVersion(uuid) >= ProtocolVersion.V1_9)) {
             players.remove(uuid);
             return;
         }
@@ -152,36 +162,41 @@ public class ViaBossBar implements BossBar {
     }
 
     private ByteBuf getPacket(UpdateAction action) {
-        ByteBuf buf = Unpooled.buffer();
-        PacketUtil.writeVarInt(PacketType.PLAY_BOSS_BAR.getNewPacketID(), buf);
-        PacketUtil.writeUUID(uuid, buf);
-        PacketUtil.writeVarInt(action.getId(), buf);
-        switch (action) {
-            case ADD:
-                PacketUtil.writeString(fixJson(title), buf);
-                buf.writeFloat(health);
-                PacketUtil.writeVarInt(color.getId(), buf);
-                PacketUtil.writeVarInt(style.getId(), buf);
-                buf.writeByte(flagToBytes());
-                break;
-            case REMOVE:
-                break;
-            case UPDATE_HEALTH:
-                buf.writeFloat(health);
-                break;
-            case UPDATE_TITLE:
-                PacketUtil.writeString(fixJson(title), buf);
-                break;
-            case UPDATE_STYLE:
-                PacketUtil.writeVarInt(color.getId(), buf);
-                PacketUtil.writeVarInt(style.getId(), buf);
-                break;
-            case UPDATE_FLAGS:
-                buf.writeByte(flagToBytes());
-                break;
-        }
+        try {
+            ByteBuf buf = Unpooled.buffer();
+            Type.VAR_INT.write(buf, 0x0C); // Boss bar packet
+            Type.UUID.write(buf, uuid);
+            Type.VAR_INT.write(buf, action.getId());
+            switch (action) {
+                case ADD:
+                    Type.STRING.write(buf, fixJson(title));
+                    buf.writeFloat(health);
+                    Type.VAR_INT.write(buf, color.getId());
+                    Type.VAR_INT.write(buf, style.getId());
+                    buf.writeByte(flagToBytes());
+                    break;
+                case REMOVE:
+                    break;
+                case UPDATE_HEALTH:
+                    buf.writeFloat(health);
+                    break;
+                case UPDATE_TITLE:
+                    Type.STRING.write(buf, fixJson(title));
+                    break;
+                case UPDATE_STYLE:
+                    Type.VAR_INT.write(buf, color.getId());
+                    Type.VAR_INT.write(buf, style.getId());
+                    break;
+                case UPDATE_FLAGS:
+                    buf.writeByte(flagToBytes());
+                    break;
+            }
 
-        return buf;
+            return buf;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     private int flagToBytes() {
@@ -192,7 +207,7 @@ public class ViaBossBar implements BossBar {
     }
 
     private String fixJson(String text) {
-        return OutgoingTransformer.fixJson(text);
+        return Protocol1_9TO1_8.fixJson(text);
     }
 
     @RequiredArgsConstructor
