@@ -1,4 +1,4 @@
-# ViaVersion 0.7.3
+# ViaVersion 0.7.6
 [![Build Status](https://travis-ci.org/MylesIsCool/ViaVersion.svg?branch=master)](https://travis-ci.org/MylesIsCool/ViaVersion)
 [![Gitter](https://badges.gitter.im/MylesIsCool/ViaVersion.svg)](https://gitter.im/MylesIsCool/ViaVersion)
 
@@ -19,8 +19,6 @@ Sources:
 --------
 
 **wiki.vg** (Protocol info, though I did have to find a lot myself)
-
-**MCProtocolLib** (used for chunk reading & some of writing.)
 
 **OpenNBT** (used for slot rewriting)
 

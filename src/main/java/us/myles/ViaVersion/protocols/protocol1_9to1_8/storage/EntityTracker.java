@@ -22,6 +22,7 @@ import us.myles.ViaVersion.api.minecraft.item.Item;
 import us.myles.ViaVersion.api.minecraft.metadata.Metadata;
 import us.myles.ViaVersion.api.type.Type;
 import us.myles.ViaVersion.protocols.base.ProtocolInfo;
+import us.myles.ViaVersion.protocols.protocol1_9to1_8.metadata.NewType;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +44,8 @@ public class EntityTracker extends StoredObject {
     private Long lastPlaceBlock = -1L;
     @Setter
     private int entityID;
+    @Setter
+    private Position currentlyDigging = null;
     private boolean teamExists = false;
 
     public EntityTracker(UserConnection user) {
@@ -126,6 +129,12 @@ public class EntityTracker extends StoredObject {
                 }
             }
 
+            if (type == EntityType.SKELETON) {
+                if ((getMetaByIndex(metadataList, 12)) == null) {
+                    metadataList.add(new Metadata(12, NewType.Boolean.getTypeID(), Type.BOOLEAN, true));
+                }
+            }
+
             if (type == EntityType.PLAYER) {
                 if (metadata.getId() == 0) {
                     // Byte
@@ -146,7 +155,9 @@ public class EntityTracker extends StoredObject {
                 if (metadata.getId() == 0 && getMetaByIndex(metadataList, 10) != null) {
                     Metadata meta = getMetaByIndex(metadataList, 10); //Only happens if the armorstand is small
                     byte data = (byte) metadata.getValue();
-                    if ((data & 0x20) == 0x20 && ((byte) meta.getValue() & 0x01) == 0x01) {
+                    // Check invisible | Check small | Check if custom name is empty | Check if custom name visible is true
+                    if ((data & 0x20) == 0x20 && ((byte) meta.getValue() & 0x01) == 0x01
+                            && ((String) getMetaByIndex(metadataList, 2).getValue()).length() != 0 && (boolean) getMetaByIndex(metadataList, 3).getValue()) {
                         if (!knownHolograms.contains(entityID)) {
                             knownHolograms.add(entityID);
                             try {

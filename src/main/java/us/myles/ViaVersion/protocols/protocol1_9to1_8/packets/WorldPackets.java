@@ -6,7 +6,6 @@ import org.spacehq.opennbt.tag.builtin.StringTag;
 import us.myles.ViaVersion.api.PacketWrapper;
 import us.myles.ViaVersion.api.ViaVersion;
 import us.myles.ViaVersion.api.minecraft.Position;
-import us.myles.ViaVersion.api.minecraft.chunks.Chunk;
 import us.myles.ViaVersion.api.minecraft.item.Item;
 import us.myles.ViaVersion.api.protocol.Protocol;
 import us.myles.ViaVersion.api.remapper.PacketHandler;
@@ -17,6 +16,7 @@ import us.myles.ViaVersion.packets.State;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.ArmorType;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.ItemRewriter;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.Protocol1_9TO1_8;
+import us.myles.ViaVersion.protocols.protocol1_9to1_8.sounds.Effect;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.sounds.SoundEffect;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.storage.ClientChunks;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.storage.EntityTracker;
@@ -49,12 +49,8 @@ public class WorldPackets {
                     @Override
                     public void handle(PacketWrapper wrapper) throws Exception {
                         int id = wrapper.get(Type.INT, 0);
-                        if (id >= 1000 && id < 2000 && id != 1005) { // Sound Effect
-                            wrapper.cancel();
-                        }
-                        if (id == 1005) { // Fix jukebox
-                            id = 1010;
-                        }
+
+                        id = Effect.getNewId(id);
                         wrapper.set(Type.INT, 0, id);
                     }
                 });
@@ -118,14 +114,9 @@ public class WorldPackets {
                     @Override
                     public void handle(PacketWrapper wrapper) throws Exception {
                         ClientChunks clientChunks = wrapper.user().get(ClientChunks.class);
-                        Chunk chunk = wrapper.passthrough(new ChunkType(clientChunks));
-                        if (chunk.isUnloadPacket()) {
-                            PacketWrapper unload = wrapper.create(0x1D);
-                            unload.write(Type.INT, chunk.getX());
-                            unload.write(Type.INT, chunk.getZ());
-                            unload.send();
-                            wrapper.cancel();
-                        }
+                        wrapper.passthrough(new ChunkType(clientChunks));
+                        // eat any other data (Usually happens with unload packets)
+                        wrapper.read(Type.REMAINING_BYTES);
                     }
                 });
             }
@@ -182,11 +173,34 @@ public class WorldPackets {
                 });
             }
         });
+
+        // Block Change Packet
+        protocol.registerOutgoing(State.PLAY, 0x23, 0x0B, new PacketRemapper() {
+            @Override
+            public void registerMap() {
+                map(Type.POSITION);
+                map(Type.VAR_INT);
+                handler(new PacketHandler() {
+                    @Override
+                    public void handle(PacketWrapper wrapper) throws Exception {
+                        Position pos = wrapper.user().get(EntityTracker.class).getCurrentlyDigging();
+                        if (pos != null) {
+                            if (wrapper.get(Type.POSITION, 0).equals(pos)) {
+                                // cancel this one
+                                if (wrapper.get(Type.VAR_INT, 0) != 0) {
+                                    wrapper.cancel();
+                                    wrapper.user().get(EntityTracker.class).setCurrentlyDigging(null);
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
         /* Packets which do not have any field remapping or handlers */
 
         protocol.registerOutgoing(State.PLAY, 0x25, 0x08); // Block Break Animation Packet
         protocol.registerOutgoing(State.PLAY, 0x24, 0x0A); // Block Action Packet
-        protocol.registerOutgoing(State.PLAY, 0x23, 0x0B); // Block Change Packet
         protocol.registerOutgoing(State.PLAY, 0x22, 0x10); // Multi Block Change Packet
         protocol.registerOutgoing(State.PLAY, 0x27, 0x1C); // Explosion Packet
         protocol.registerOutgoing(State.PLAY, 0x2A, 0x22); // Particle Packet
@@ -236,6 +250,26 @@ public class WorldPackets {
                         }
                     }
                 });
+                // Digging patch (prevents it glitching)
+                handler(new PacketHandler() {
+                    @Override
+                    public void handle(PacketWrapper wrapper) throws Exception {
+                        if(!ViaVersion.getConfig().isBlockBreakPatch()) return;
+
+                        EntityTracker entityTracker = wrapper.user().get(EntityTracker.class);
+                        final Position block = wrapper.get(Type.POSITION, 0);
+                        int status = wrapper.get(Type.UNSIGNED_BYTE, 0);
+                        if (status == 0) {
+                            entityTracker.setCurrentlyDigging(null);
+                        }
+                        if (status == 1) {
+                            entityTracker.setCurrentlyDigging(null);
+                        }
+                        if (status == 2) {
+                            entityTracker.setCurrentlyDigging(block);
+                        }
+                    }
+                });
             }
         });
 
@@ -254,7 +288,7 @@ public class WorldPackets {
                         wrapper.write(Type.LONG, -1L);
                         wrapper.write(Type.BYTE, (byte) 255);
                         // Write item in hand
-                        Item item = Item.getItem(Protocol1_9TO1_8.getHandItem(wrapper.user()));
+                        Item item = Protocol1_9TO1_8.getHandItem(wrapper.user());
                         // Blocking patch
                         if (ViaVersion.getConfig().isShieldBlocking()) {
                             if (item != null) {
@@ -334,7 +368,7 @@ public class WorldPackets {
                 create(new ValueCreator() {
                     @Override
                     public void write(PacketWrapper wrapper) throws Exception {
-                        Item item = Item.getItem(Protocol1_9TO1_8.getHandItem(wrapper.user()));
+                        Item item = Protocol1_9TO1_8.getHandItem(wrapper.user());
                         wrapper.write(Type.ITEM, item); // 3 - Item
                     }
                 });
