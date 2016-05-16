@@ -6,6 +6,7 @@ import org.spacehq.opennbt.tag.builtin.StringTag;
 import us.myles.ViaVersion.api.PacketWrapper;
 import us.myles.ViaVersion.api.ViaVersion;
 import us.myles.ViaVersion.api.minecraft.Position;
+import us.myles.ViaVersion.api.minecraft.chunks.Chunk;
 import us.myles.ViaVersion.api.minecraft.item.Item;
 import us.myles.ViaVersion.api.protocol.Protocol;
 import us.myles.ViaVersion.api.remapper.PacketHandler;
@@ -13,13 +14,13 @@ import us.myles.ViaVersion.api.remapper.PacketRemapper;
 import us.myles.ViaVersion.api.remapper.ValueCreator;
 import us.myles.ViaVersion.api.type.Type;
 import us.myles.ViaVersion.packets.State;
-import us.myles.ViaVersion.protocols.protocol1_9to1_8.ArmorType;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.ItemRewriter;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.Protocol1_9TO1_8;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.sounds.Effect;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.sounds.SoundEffect;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.storage.ClientChunks;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.storage.EntityTracker;
+import us.myles.ViaVersion.protocols.protocol1_9to1_8.storage.PlaceBlockTracker;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.types.ChunkType;
 
 public class WorldPackets {
@@ -114,7 +115,10 @@ public class WorldPackets {
                     @Override
                     public void handle(PacketWrapper wrapper) throws Exception {
                         ClientChunks clientChunks = wrapper.user().get(ClientChunks.class);
-                        wrapper.passthrough(new ChunkType(clientChunks));
+                        Chunk chunk = wrapper.passthrough(new ChunkType(clientChunks));
+                        if (chunk.isUnloadPacket())
+                            wrapper.setId(0x1D);
+
                         // eat any other data (Usually happens with unload packets)
                         wrapper.read(Type.REMAINING_BYTES);
                     }
@@ -345,32 +349,12 @@ public class WorldPackets {
                 handler(new PacketHandler() {
                     @Override
                     public void handle(PacketWrapper wrapper) throws Exception {
-                        Item item = wrapper.get(Type.ITEM, 0);
-                        if (item != null) {
-                            Material m = Material.getMaterial(item.getId());
-                            if (m != null) {
-                                // Prevent special items from sending certain info
-                                // Books
-                                boolean special = m == Material.WRITTEN_BOOK;
-                                // Buckets
-                                special = special || m == Material.WATER_BUCKET || m == Material.LAVA_BUCKET || m == Material.BUCKET;
-                                // Food
-                                special = special || m.isEdible();
-                                // Potions
-                                special = special || m == Material.POTION || m == Material.GLASS_BOTTLE;
-                                // Projectiles
-                                special = special || m == Material.BOW;
-                                special = special || m == Material.SNOW_BALL || m == Material.EGG || m == Material.EXP_BOTTLE || m == Material.ENDER_PEARL || m == Material.EYE_OF_ENDER;
-                                // Armour
-                                special = special || ArmorType.isArmor(m);
-                                // Don't send data if special
-                                if (special && m != Material.AIR) {
-                                    EntityTracker tracker = wrapper.user().get(EntityTracker.class);
-                                    tracker.setLastPlaceBlock(wrapper.user().getReceivedPackets());
-                                }
-
-                            }
-                        }
+                        Position position = wrapper.get(Type.POSITION, 0);
+                        PlaceBlockTracker tracker = wrapper.user().get(PlaceBlockTracker.class);
+                        if (tracker.getLastPlacedPosition() != null && tracker.getLastPlacedPosition().equals(position) && !tracker.isExpired(50))
+                            wrapper.cancel();
+                        tracker.updateTime();
+                        tracker.setLastPlacedPosition(position);
                     }
                 });
 

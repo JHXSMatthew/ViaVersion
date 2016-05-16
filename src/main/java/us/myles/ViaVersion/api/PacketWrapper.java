@@ -164,6 +164,21 @@ public class PacketWrapper {
     }
 
     /**
+     * Take all the inputs and write them to the output.
+     *
+     * @throws Exception If it failed to read or write
+     */
+    public void passthroughAll() throws Exception {
+        // Copy previous objects
+        packetValues.addAll(readableObjects);
+        readableObjects.clear();
+        // If the buffer has readable bytes, copy them.
+        if(inputBuffer.readableBytes() > 0){
+            passthrough(Type.REMAINING_BYTES);
+        }
+    }
+
+    /**
      * Write the current output to a buffer.
      *
      * @param buffer The buffer to write to.
@@ -302,5 +317,14 @@ public class PacketWrapper {
 
             PipelineUtil.getContextBefore("decompress", user().getChannel().pipeline()).fireChannelRead(output);
         }
+    }
+
+    @Override
+    public String toString() {
+        return "PacketWrapper{" +
+                "packetValues=" + packetValues +
+                ", readableObjects=" + readableObjects +
+                ", id=" + id +
+                '}';
     }
 }

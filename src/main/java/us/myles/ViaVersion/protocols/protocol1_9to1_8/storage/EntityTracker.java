@@ -2,13 +2,12 @@ package us.myles.ViaVersion.protocols.protocol1_9to1_8.storage;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import lombok.Getter;
 import lombok.Setter;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Player;
 import us.myles.ViaVersion.ViaVersionPlugin;
 import us.myles.ViaVersion.api.PacketWrapper;
 import us.myles.ViaVersion.api.ViaVersion;
@@ -22,19 +21,21 @@ import us.myles.ViaVersion.api.minecraft.item.Item;
 import us.myles.ViaVersion.api.minecraft.metadata.Metadata;
 import us.myles.ViaVersion.api.type.Type;
 import us.myles.ViaVersion.protocols.base.ProtocolInfo;
+import us.myles.ViaVersion.protocols.protocol1_9to1_8.chat.GameMode;
 import us.myles.ViaVersion.protocols.protocol1_9to1_8.metadata.NewType;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Getter
 public class EntityTracker extends StoredObject {
-    private final Map<Integer, UUID> uuidMap = new HashMap<>();
-    private final Map<Integer, EntityType> clientEntityTypes = new HashMap<>();
-    private final Map<Integer, Integer> vehicleMap = new HashMap<>();
-    private final Map<Integer, BossBar> bossBarMap = new HashMap<>();
-    private final Set<Integer> validBlocking = new HashSet<>();
-    private final Set<Integer> knownHolograms = new HashSet<>();
+    private final Map<Integer, UUID> uuidMap = new ConcurrentHashMap<>();
+    private final Map<Integer, EntityType> clientEntityTypes = new ConcurrentHashMap<>();
+    private final Map<Integer, Integer> vehicleMap = new ConcurrentHashMap<>();
+    private final Map<Integer, BossBar> bossBarMap = new ConcurrentHashMap<>();
+    private final Set<Integer> validBlocking = Sets.newConcurrentHashSet();
+    private final Set<Integer> knownHolograms = Sets.newConcurrentHashSet();
     private final Cache<Position, Material> blockInteractions = CacheBuilder.newBuilder().maximumSize(10).expireAfterAccess(250, TimeUnit.MILLISECONDS).build();
     @Setter
     private boolean blocking = false;
@@ -47,6 +48,8 @@ public class EntityTracker extends StoredObject {
     @Setter
     private Position currentlyDigging = null;
     private boolean teamExists = false;
+    @Setter
+    private GameMode gameMode;
 
     public EntityTracker(UserConnection user) {
         super(user);
@@ -176,7 +179,7 @@ public class EntityTracker extends StoredObject {
                     }
                 }
             }
-            Player player = Bukkit.getPlayer(getUser().get(ProtocolInfo.class).getUuid());
+            UUID uuid = getUser().get(ProtocolInfo.class).getUuid();
             // Boss bar
             if (((ViaVersionPlugin) ViaVersion.getInstance()).isBossbarPatch()) {
                 if (type == EntityType.ENDER_DRAGON || type == EntityType.WITHER) {
@@ -187,7 +190,7 @@ public class EntityTracker extends StoredObject {
                         if (bar == null) {
                             bar = ViaVersion.getInstance().createBossBar(title, BossColor.PINK, BossStyle.SOLID);
                             bossBarMap.put(entityID, bar);
-                            bar.addPlayer(player);
+                            bar.addPlayer(uuid);
                             bar.show();
                         } else {
                             bar.setTitle(title);
@@ -201,7 +204,7 @@ public class EntityTracker extends StoredObject {
                             String title = type == EntityType.ENDER_DRAGON ? "Ender Dragon" : "Wither";
                             bar = ViaVersion.getInstance().createBossBar(title, health, BossColor.PINK, BossStyle.SOLID);
                             bossBarMap.put(entityID, bar);
-                            bar.addPlayer(player);
+                            bar.addPlayer(uuid);
                             bar.show();
                         } else {
                             bar.setHealth(health);
