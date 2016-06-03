@@ -78,6 +78,7 @@ public interface ViaVersionConfig {
      *
      * @return true if boss bar patching is enabled
      */
+    @Deprecated
     boolean isUnknownEntitiesSuppressed();
 
     /**
@@ -99,6 +100,7 @@ public interface ViaVersionConfig {
      *
      * @return true if it is enabled.
      */
+    @Deprecated
     boolean isBlockBreakPatch();
 
     /**
@@ -111,7 +113,7 @@ public interface ViaVersionConfig {
     /**
      * Get the kick message sent if the user hits the max packets per second.
      *
-     * @return Kick message, with colour codes using '&'
+     * @return Kick message, with colour codes using '&amp;'
      */
     String getMaxPPSKickMessage();
 
@@ -139,7 +141,7 @@ public interface ViaVersionConfig {
     /**
      * Get the kick message sent if the user goes over the warnings in the interval
      *
-     * @return Kick message, with colour codes using '&'
+     * @return Kick message, with colour codes using '&amp;'
      */
     String getMaxWarningsKickMessage();
 
@@ -149,4 +151,11 @@ public interface ViaVersionConfig {
      * @return A boolean
      */
     boolean isAntiXRay();
+
+    /**
+     * Send supported versions in the status response packet
+     *
+     * @return If true, enabled
+     */
+    boolean isSendSupportedVersions();
 }

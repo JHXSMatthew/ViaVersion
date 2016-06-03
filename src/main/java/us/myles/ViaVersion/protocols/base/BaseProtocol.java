@@ -1,5 +1,6 @@
 package us.myles.ViaVersion.protocols.base;
 
+import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -22,6 +23,7 @@ import us.myles.ViaVersion.packets.State;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Level;
 
 public class BaseProtocol extends Protocol {
 
@@ -40,6 +42,8 @@ public class BaseProtocol extends Protocol {
                         try {
                             JSONObject json = (JSONObject) new JSONParser().parse(originalStatus);
                             JSONObject version = (JSONObject) json.get("version");
+                            if (ViaVersion.getConfig().isSendSupportedVersions())
+                                version.put("supportedVersions", ViaVersion.getInstance().getSupportedVersions());
                             if (ProtocolRegistry.SERVER_PROTOCOL == -1) {
                                 Long original = (Long) version.get("protocol");
                                 ProtocolRegistry.SERVER_PROTOCOL = original.intValue();
@@ -83,6 +87,15 @@ public class BaseProtocol extends Protocol {
                         info.setUsername(wrapper.get(Type.STRING, 1));
                         // Add to ported clients
                         ((ViaVersionPlugin) ViaVersion.getInstance()).addPortedClient(wrapper.user());
+                        if (ViaVersion.getInstance().isDebug()) {
+                            // Print out the route to console
+                            ((ViaVersionPlugin) ViaVersion.getInstance()).getLogger().log(Level.INFO, "{0} logged in with protocol {1}, Route: {2}",
+                                    new Object[]{
+                                            wrapper.get(Type.STRING, 1),
+                                            info.getProtocolVersion(),
+                                            StringUtils.join(info.getPipeline().pipes(), ", ")
+                                    });
+                        }
                     }
                 });
             }

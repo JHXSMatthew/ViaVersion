@@ -6,7 +6,7 @@
 
     <groupId>us.myles</groupId>
     <artifactId>viaversion</artifactId>
-    <version>0.8.2-SNAPSHOT</version>
+    <version>0.8.5-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>ViaVersion</name>
@@ -33,6 +33,7 @@
     <build>
         <finalName>${project.name}-${project.version}</finalName>
         <sourceDirectory>src/main/java</sourceDirectory>
+        <defaultGoal>clean install</defaultGoal>
         <!-- <testSourceDirectory>src/test/java</testSourceDirectory> -->
 
         <resources>

@@ -7,6 +7,7 @@ import us.myles.ViaVersion.api.boss.BossColor;
 import us.myles.ViaVersion.api.boss.BossStyle;
 import us.myles.ViaVersion.api.command.ViaVersionCommand;
 
+import java.util.SortedSet;
 import java.util.UUID;
 
 public interface ViaVersionAPI {
@@ -37,7 +38,7 @@ public interface ViaVersionAPI {
     /**
      * Is player using 1.9?
      *
-     * @param playerUUID
+     * @param playerUUID UUID of a player
      * @return True if the client is on 1.9
      */
     boolean isPorted(UUID playerUUID);
@@ -109,4 +110,19 @@ public interface ViaVersionAPI {
      * @return True if it is
      */
     boolean isCompatSpigotBuild();
+
+    /**
+     * Get the supported protocol versions
+     *
+     * @return a list of protocol versions
+     */
+    SortedSet<Integer> getSupportedVersions();
+
+    /**
+     * Gets if the server uses spigot
+     *
+     * Note: Will only work after ViaVersion load
+     * @return True if spigot
+     */
+    boolean isSpigot();
 }
