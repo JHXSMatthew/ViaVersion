@@ -104,13 +104,13 @@ public class SpawnPackets {
                                     List<Metadata> meta = new ArrayList<>();
                                     Item item = new Item((short) Material.POTION.getId(), (byte) 1, (short) data, null);
                                     ItemRewriter.toClient(item); // Rewrite so that it gets the right nbt
-
+                                    // TEMP FIX FOR POTIONS UNTIL WE FIGURE OUT HOW TO TRANSFORM SENT PACKETS
                                     Metadata potion = new Metadata(5, NewType.Slot.getTypeID(), Type.ITEM, item);
                                     meta.add(potion);
                                     wrapper.write(Protocol1_9TO1_8.METADATA_LIST, meta);
                                 }
                             });
-                            metaPacket.send();
+                            metaPacket.send(Protocol1_9TO1_8.class);
                         }
                     }
                 });
@@ -303,7 +303,7 @@ public class SpawnPackets {
                             packet.write(Type.VAR_INT, 0);
                             packet.write(Type.ITEM, new Item(item, (byte) 1, (short) 0, null));
                             try {
-                                packet.send();
+                                packet.send(Protocol1_9TO1_8.class);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }

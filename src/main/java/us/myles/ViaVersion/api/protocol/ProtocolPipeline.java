@@ -69,11 +69,9 @@ public class ProtocolPipeline extends Protocol {
         if (direction == Direction.OUTGOING)
             Collections.reverse(protocols);
 
-        for (Protocol protocol : protocols) { // Copy to prevent from removal.
-            protocol.transform(direction, state, packetWrapper);
-            // Reset the reader for the packetWrapper (So it can be recycled across packets)
-            packetWrapper.resetReader();
-        }
+        // Apply protocols
+        packetWrapper.apply(direction, state, 0, protocols);
+
         super.transform(direction, state, packetWrapper);
 
         if (ViaVersion.getInstance().isDebug()) {
@@ -94,20 +92,21 @@ public class ProtocolPipeline extends Protocol {
                 } else {
                     type = PacketType.findNewPacket(state, direction, originalID);
                 }
+                if (type != null) {
+                    // Filter :) This would be not hard coded too, sorry :(
+                    if (type == PacketType.PLAY_CHUNK_DATA) return;
+                    if (type == PacketType.PLAY_TIME_UPDATE) return;
+                    if (type == PacketType.PLAY_KEEP_ALIVE) return;
+                    if (type == PacketType.PLAY_KEEP_ALIVE_REQUEST) return;
+                    if (type == PacketType.PLAY_ENTITY_LOOK_MOVE) return;
+                    if (type == PacketType.PLAY_ENTITY_LOOK) return;
+                    if (type == PacketType.PLAY_ENTITY_RELATIVE_MOVE) return;
+                    if (type == PacketType.PLAY_PLAYER_POSITION_LOOK_REQUEST) return;
+                    if (type == PacketType.PLAY_PLAYER_LOOK_REQUEST) return;
+                    if (type == PacketType.PLAY_PLAYER_POSITION_REQUEST) return;
 
-                // Filter :) This would be not hard coded too, sorry :(
-                if (type == PacketType.PLAY_CHUNK_DATA) return;
-                if (type == PacketType.PLAY_TIME_UPDATE) return;
-                if (type == PacketType.PLAY_KEEP_ALIVE) return;
-                if (type == PacketType.PLAY_KEEP_ALIVE_REQUEST) return;
-                if (type == PacketType.PLAY_ENTITY_LOOK_MOVE) return;
-                if (type == PacketType.PLAY_ENTITY_LOOK) return;
-                if (type == PacketType.PLAY_ENTITY_RELATIVE_MOVE) return;
-                if (type == PacketType.PLAY_PLAYER_POSITION_LOOK_REQUEST) return;
-                if (type == PacketType.PLAY_PLAYER_LOOK_REQUEST) return;
-                if (type == PacketType.PLAY_PLAYER_POSITION_REQUEST) return;
-
-                packet = type.name();
+                    packet = type.name();
+                }
             }
             String name = packet + "[" + userConnection.get(ProtocolInfo.class).getProtocolVersion() + "]";
             ViaVersionPlugin plugin = (ViaVersionPlugin) ViaVersion.getInstance();

@@ -1,17 +1,18 @@
-package us.myles.ViaVersion.protocols.protocol1_9_1_2to1_9_3;
+package us.myles.ViaVersion.protocols.protocol1_9_1_2to1_9_3_4;
 
 import org.spacehq.opennbt.tag.builtin.CompoundTag;
 import us.myles.ViaVersion.api.PacketWrapper;
 import us.myles.ViaVersion.api.data.UserConnection;
 import us.myles.ViaVersion.api.minecraft.Position;
+import us.myles.ViaVersion.api.minecraft.chunks.Chunk;
 import us.myles.ViaVersion.api.protocol.Protocol;
 import us.myles.ViaVersion.api.remapper.PacketHandler;
 import us.myles.ViaVersion.api.remapper.PacketRemapper;
 import us.myles.ViaVersion.api.type.Type;
 import us.myles.ViaVersion.packets.State;
 
-public class Protocol1_9_1_2TO1_9_3 extends Protocol {
-    public static Type<Chunk1_9_3> CHUNK = new Chunk1_9_3Type();
+public class Protocol1_9_1_2TO1_9_3_4 extends Protocol {
+    public static Type<Chunk> CHUNK = new Chunk1_9_3_4Type();
 
     @Override
     protected void registerPackets() {
@@ -56,8 +57,8 @@ public class Protocol1_9_1_2TO1_9_3 extends Protocol {
                 handler(new PacketHandler() {
                     @Override
                     public void handle(PacketWrapper wrapper) throws Exception {
-                        Chunk1_9_3 chunk = wrapper.passthrough(CHUNK);
-                        BlockEntity.handle(chunk.getBlockEntities(), wrapper.user());
+                        Chunk chunk = wrapper.passthrough(CHUNK);
+                        BlockEntity.handle(((Chunk1_9_3_4) chunk).getBlockEntities(), wrapper.user());
                     }
                 });
             }

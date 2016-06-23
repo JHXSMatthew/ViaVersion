@@ -2,8 +2,9 @@ name: ViaVersion
 main: us.myles.ViaVersion.ViaVersionPlugin
 author: _MylesC
 version: ${project.version}
-load: startup
+load: postworld
 loadbefore: [ProtocolLib, ProxyPipe, SpigotLib, PacketListenerApi, SkinRestorer]
+softdepend: [ProtocolSupport]
 commands:
   viaversion:
     description: Shows ViaVersion Version and more.

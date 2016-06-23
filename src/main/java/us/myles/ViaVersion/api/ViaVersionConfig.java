@@ -3,13 +3,6 @@ package us.myles.ViaVersion.api;
 public interface ViaVersionConfig {
 
     /**
-     * Get if global debug is enabled
-     *
-     * @return true if debug is enabled
-     */
-    boolean isDebug();
-
-    /**
      * Get if the plugin should check for updates
      *
      * @return true if update checking is enabled
@@ -24,14 +17,14 @@ public interface ViaVersionConfig {
     boolean isPreventCollision();
 
     /**
-     * Get if 1.9 clients are shown the new effect indicator in the top-right corner
+     * Get if 1.9 & 1.10 clients are shown the new effect indicator in the top-right corner
      *
      * @return true if the using of the new effect indicator is enabled
      */
     boolean isNewEffectIndicator();
 
     /**
-     * Get if 1.9 clients are shown the new death message on the death screen
+     * Get if 1.9 & 1.10 clients are shown the new death message on the death screen
      *
      * @return true if enabled
      */
@@ -45,28 +38,28 @@ public interface ViaVersionConfig {
     boolean isSuppressMetadataErrors();
 
     /**
-     * Get if blocking in 1.9 appears as a player holding a shield
+     * Get if blocking in 1.9 & 1.10 appears as a player holding a shield
      *
      * @return true if shield blocking is enabled
      */
     boolean isShieldBlocking();
 
     /**
-     * Get if armor stand positions are fixed so holograms show up at the correct height in 1.9
+     * Get if armor stand positions are fixed so holograms show up at the correct height in 1.9 & 1.10
      *
      * @return true if hologram patching is enabled
      */
     boolean isHologramPatch();
 
     /**
-     * Get if boss bars are fixed for 1.9 clients
+     * Get if boss bars are fixed for 1.9 & 1.10 clients
      *
      * @return true if boss bar patching is enabled
      */
     boolean isBossbarPatch();
 
     /**
-     * Get if the boss bars for 1.9 clients are being stopped from flickering
+     * Get if the boss bars for 1.9 & 1.10 clients are being stopped from flickering
      * This will keep all boss bars on 100% (not recommended)
      *
      * @return true if boss bar anti flickering is enabled
@@ -158,4 +151,39 @@ public interface ViaVersionConfig {
      * @return If true, enabled
      */
     boolean isSendSupportedVersions();
+
+    /**
+     * Stimulate the player tick
+     *
+     * @return if true, enabled
+     */
+    boolean isStimulatePlayerTick();
+
+    /**
+     * Use the item cache to prevent high resource usage
+     *
+     * @return if true, enabled
+     */
+    boolean isItemCache();
+
+    /**
+     * Use the NMS player ticking
+     *
+     * @return if true, enabled
+     */
+    boolean isNMSPlayerTicking();
+
+    /**
+     * Replace extended pistons on 1.10 chunk loading.
+     *
+     * @return True if to replace them
+     */
+    boolean isReplacePistons();
+
+    /**
+     * Get the id for replacing extended pistons.
+     *
+     * @return The integer id
+     */
+    int getPistonReplacementId();
 }

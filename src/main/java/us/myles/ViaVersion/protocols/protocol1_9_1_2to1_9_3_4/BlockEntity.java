@@ -1,4 +1,4 @@
-package us.myles.ViaVersion.protocols.protocol1_9_1_2to1_9_3;
+package us.myles.ViaVersion.protocols.protocol1_9_1_2to1_9_3_4;
 
 import lombok.Getter;
 import org.spacehq.opennbt.tag.builtin.CompoundTag;
@@ -45,15 +45,12 @@ public class BlockEntity {
                 if (newId == -1)
                     continue;
 
-
                 int x = (int) tag.get("x").getValue();
                 int y = (int) tag.get("y").getValue();
                 int z = (int) tag.get("z").getValue();
 
                 Position pos = new Position((long) x, (long) y, (long) z);
 
-                //Sorry, the PacketWrapper class wil handle this in the future
-                //TODO let the packetwrapper class handle it
                 if (newId != 9) {
                     updateBlockEntity(pos, (short) newId, tag, connection);
                 } else {
@@ -63,7 +60,7 @@ public class BlockEntity {
                     updateSign(pos, lines, connection);
                 }
             } catch (Exception e) {
-                if(ViaVersion.getInstance().isDebug()) {
+                if (ViaVersion.getInstance().isDebug()) {
                     System.out.println("Block Entity: " + e.getMessage() + ": " + tag);
                 }
             }
@@ -75,7 +72,7 @@ public class BlockEntity {
         wrapper.write(Type.POSITION, pos);
         wrapper.write(Type.UNSIGNED_BYTE, id);
         wrapper.write(Type.NBT, tag);
-        wrapper.send();
+        wrapper.send(Protocol1_9_1_2TO1_9_3_4.class);
     }
 
     private static void updateSign(Position pos, String[] lines, UserConnection connection) throws Exception {
@@ -83,6 +80,6 @@ public class BlockEntity {
         wrapper.write(Type.POSITION, pos);
         for (String s : lines)
             wrapper.write(Type.STRING, s);
-        wrapper.send();
+        wrapper.send(Protocol1_9_1_2TO1_9_3_4.class);
     }
 }

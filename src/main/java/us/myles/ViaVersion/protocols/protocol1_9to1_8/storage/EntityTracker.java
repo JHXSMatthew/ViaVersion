@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
-import us.myles.ViaVersion.ViaVersionPlugin;
 import us.myles.ViaVersion.api.PacketWrapper;
 import us.myles.ViaVersion.api.ViaVersion;
 import us.myles.ViaVersion.api.boss.BossBar;
@@ -45,8 +44,6 @@ public class EntityTracker extends StoredObject {
     @Setter
     private boolean autoTeam = false;
     @Setter
-    private Long lastPlaceBlock = -1L;
-    @Setter
     private int entityID;
     @Setter
     private Position currentlyDigging = null;
@@ -78,7 +75,7 @@ public class EntityTracker extends StoredObject {
         wrapper.write(Type.VAR_INT, 1); // slot
         wrapper.write(Type.ITEM, item);
         try {
-            wrapper.send();
+            wrapper.send(Protocol1_9TO1_8.class);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -144,11 +141,18 @@ public class EntityTracker extends StoredObject {
                 }
             }
 
+            //ECHOPET Patch
+            if (type == EntityType.HORSE) {
+                // Wrong metadata value from EchoPet, patch since it's discontinued. (https://github.com/DSH105/EchoPet/blob/06947a8b08ce40be9a518c2982af494b3b99d140/modules/API/src/main/java/com/dsh105/echopet/compat/api/entity/HorseArmour.java#L22)
+                if (metadata.getId() == 16 && (int) metadata.getValue() == Integer.MIN_VALUE)
+                    metadata.setValue(0);
+            }
+
             if (type == EntityType.PLAYER) {
                 if (metadata.getId() == 0) {
                     // Byte
                     byte data = (byte) metadata.getValue();
-                    if (entityID != getEntityID() && ((ViaVersionPlugin) ViaVersion.getInstance()).isShieldBlocking()) {
+                    if (entityID != getEntityID() && ViaVersion.getConfig().isShieldBlocking()) {
                         if ((data & 0x10) == 0x10) {
                             if (validBlocking.contains(entityID)) {
                                 Item shield = new Item((short) 442, (byte) 1, (short) 0, null);
@@ -160,7 +164,7 @@ public class EntityTracker extends StoredObject {
                     }
                 }
             }
-            if (type == EntityType.ARMOR_STAND && ((ViaVersionPlugin) ViaVersion.getInstance()).isHologramPatch()) {
+            if (type == EntityType.ARMOR_STAND && ViaVersion.getConfig().isHologramPatch()) {
                 if (metadata.getId() == 0 && getMetaByIndex(metadataList, 10) != null) {
                     Metadata meta = getMetaByIndex(metadataList, 10); //Only happens if the armorstand is small
                     byte data = (byte) metadata.getValue();
@@ -175,7 +179,7 @@ public class EntityTracker extends StoredObject {
                                 Type.VAR_INT.write(buf, 0x25); // Relative Move Packet
                                 Type.VAR_INT.write(buf, entityID);
                                 buf.writeShort(0);
-                                buf.writeShort((short) (128D * (((ViaVersionPlugin) ViaVersion.getInstance()).getHologramYOffset() * 32D)));
+                                buf.writeShort((short) (128D * (ViaVersion.getConfig().getHologramYOffset() * 32D)));
                                 buf.writeShort(0);
                                 buf.writeBoolean(true);
                                 getUser().sendRawPacket(buf, false);
@@ -187,7 +191,7 @@ public class EntityTracker extends StoredObject {
             }
             UUID uuid = getUser().get(ProtocolInfo.class).getUuid();
             // Boss bar
-            if (((ViaVersionPlugin) ViaVersion.getInstance()).isBossbarPatch()) {
+            if (ViaVersion.getConfig().isBossbarPatch()) {
                 if (type == EntityType.ENDER_DRAGON || type == EntityType.WITHER) {
                     if (metadata.getId() == 2) {
                         BossBar bar = bossBarMap.get(entityID);
@@ -201,7 +205,7 @@ public class EntityTracker extends StoredObject {
                         } else {
                             bar.setTitle(title);
                         }
-                    } else if (metadata.getId() == 6 && !((ViaVersionPlugin) ViaVersion.getInstance()).isBossbarAntiflicker()) { // If anti flicker is enabled, don't update health
+                    } else if (metadata.getId() == 6 && !ViaVersion.getConfig().isBossbarAntiflicker()) { // If anti flicker is enabled, don't update health
                         BossBar bar = bossBarMap.get(entityID);
                         // Make health range between 0 and 1
                         float maxHealth = type == EntityType.ENDER_DRAGON ? 200.0f : 300.0f;
@@ -252,7 +256,7 @@ public class EntityTracker extends StoredObject {
         }
         teamExists = b;
         try {
-            wrapper.send();
+            wrapper.send(Protocol1_9TO1_8.class);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -275,7 +279,7 @@ public class EntityTracker extends StoredObject {
             handleMetadata(entityID, metadataBuffer.get(entityID));
             if (metadataBuffer.get(entityID).size() > 0) {
                 try {
-                    wrapper.send();
+                    wrapper.send(Protocol1_9TO1_8.class);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

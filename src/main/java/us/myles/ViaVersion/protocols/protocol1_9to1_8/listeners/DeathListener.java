@@ -10,6 +10,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import us.myles.ViaVersion.ViaVersionPlugin;
 import us.myles.ViaVersion.api.PacketWrapper;
+import us.myles.ViaVersion.api.ViaVersion;
 import us.myles.ViaVersion.api.data.UserConnection;
 import us.myles.ViaVersion.api.type.Type;
 import us.myles.ViaVersion.protocols.base.ProtocolInfo;
@@ -22,7 +23,7 @@ public class DeathListener implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onDeath(PlayerDeathEvent e) {
         Player p = e.getEntity();
-        if (plugin.isShowNewDeathMessages() && checkGamerule(p.getWorld()) && e.getDeathMessage() != null && checkPipeline(p)) {
+        if (ViaVersion.getConfig().isShowNewDeathMessages() && checkGamerule(p.getWorld()) && e.getDeathMessage() != null && checkPipeline(p)) {
             sendPacket(p, e.getDeathMessage());
         }
     }
@@ -54,7 +55,7 @@ public class DeathListener implements Listener {
                     wrapper.write(Type.VAR_INT, p.getEntityId());
                     wrapper.write(Type.INT, p.getEntityId());
                     Protocol1_9TO1_8.FIX_JSON.write(wrapper, msg);
-                    wrapper.send();
+                    wrapper.send(Protocol1_9TO1_8.class);
                 } catch (Exception e) {
                     e.printStackTrace();
                     wrapper.clearInputBuffer();
